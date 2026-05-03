@@ -1,0 +1,113 @@
+diff -Buar tamago-tsunagi-5.0.7.1/egg/wnn.el /usr/local/share/emacs/site-lisp/tamago-tsunagi/egg/wnn.el
+--- tamago-tsunagi-5.0.7.1/egg/wnn.el	2026-04-18 11:00:39.574476401 +0900
++++ /usr/local/share/emacs/site-lisp/tamago-tsunagi/egg/wnn.el	2026-04-18 04:42:31.985345579 +0900
+@@ -367,9 +367,13 @@
+ 
+ (defun wnnenv-create (proc env-id &optional server-type wnn-version
+ 		      backend tankan name)
+-  (if name
+-      (set (setq name (make-symbol name)) (make-vector 5 nil)))
+-  (vector proc env-id server-type wnn-version backend tankan name
++  ;;  env[6] = env-name-kvp
++  ;;	    env-name-kvp    = (env-name, kvp)
++;;  (if name
++;;      (set (setq name (make-symbol name)) (make-vector 5 nil)))
++  (vector proc env-id server-type wnn-version backend tankan
++;;	  name
++	  (cons name (make-hash-table :size 5 :test 'equal))
+ 	  (make-vector 2 (WNN-const DIC_RDONLY))))
+ 
+ (defsubst wnnenv-get-proc (env)        (aref env 0))
+@@ -379,16 +383,28 @@
+ (defsubst wnnenv-get-backend (env)     (aref env 4))
+ (defsubst wnnenv-get-tankan (env)      (aref env 5))
+ 
++;;;  env[6] = (env-name . kvp)
+ (defun wnnenv-get-client-file (env name)
+-  (let ((hash (intern-soft name (symbol-value (aref env 6)))))
+-    (and hash (symbol-value hash))))
++;;  (let ((hash (intern-soft name (symbol-value (aref env 6)))))
++;;    (and hash (symbol-value hash)))
++  (gethash name (cdr (aref env 6)))
++)
+ 
+ (defun wnnenv-set-client-file (env name)
+-  (set (intern (concat wnn-system-name "!" name) (symbol-value (aref env 6)))
+-       name))
+-
+-(defsubst wnnenv-get-hinshi (env h)    (or (get (aref env 6) h) -1))
+-(defsubst wnnenv-set-hinshi (env h v)  (put (aref env 6) h v))
++;;  (set (intern (concat wnn-system-name "!" name) (symbol-value (aref env 6)))
++;;       name)
++  (puthash (concat wnn-system-name "!" name) name (cdr (aref env 6)))
++)
++
++(defsubst wnnenv-get-hinshi (env h)
++  (or
++;;   (get (aref env 6) h)
++   (gethash h (cdr (aref env 6)))
++   -1))
++(defsubst wnnenv-set-hinshi (env h v)
++;;  (put (aref env 6) h v)
++  (puthash h v (cdr (aref env 6)))
++  )
+ 
+ (defsubst wnnenv-get-auto-learn (env)  (aref env 7))
+ (defsubst wnnenv-get-notrans (env)     (aref (wnnenv-get-auto-learn env) 0))
+diff -Buar tamago-tsunagi-5.0.7.1/egg.el /usr/local/share/emacs/site-lisp/tamago-tsunagi/egg.el
+--- tamago-tsunagi-5.0.7.1/egg.el	2015-02-03 07:22:57.000000000 +0900
++++ /usr/local/share/emacs/site-lisp/tamago-tsunagi/egg.el	2026-04-18 05:21:48.835162069 +0900
+@@ -30,7 +30,7 @@
+ 
+ ;;; Code:
+ 
+-(defconst egg-version "5.0.7.1"
++(defconst egg-version "5.0.7.1a"
+   "Version number for this version of Tamago.")
+ 
+ (defconst egg-tsunagi-version egg-version
+diff -Buar tamago-tsunagi-5.0.7.1/its.el /usr/local/share/emacs/site-lisp/tamago-tsunagi/its.el
+--- tamago-tsunagi-5.0.7.1/its.el	2026-04-18 11:02:23.347253213 +0900
++++ /usr/local/share/emacs/site-lisp/tamago-tsunagi/its.el	2026-04-18 02:09:37.286123001 +0900
+@@ -1355,8 +1355,8 @@
+   (interactive)
+   (its-convert (lambda (str lang) (japanese-katakana str))))
+ 
+-(defconst its-full-half-table (make-vector 100 nil))
+-(defconst its-half-full-table (make-vector 100 nil))
++(defconst its-full-half-table (make-hash-table :size 100))
++(defconst its-half-full-table (make-hash-table :size 100))
+ 
+ (let ((table '((Japanese
+ 		(?　 . ?\ ) (?， . ?,)  (?． . ?.)  (?、 . ?,)  (?。 . ?.)
+@@ -1466,20 +1466,23 @@
+ 		(?ｐ . ?p)  (?ｑ . ?q)  (?ｒ . ?r)  (?ｓ . ?s)  (?ｔ . ?t)
+ 		(?ｕ . ?u)  (?ｖ . ?v)  (?ｗ . ?w)  (?ｘ . ?x)  (?ｙ . ?y)
+ 		(?ｚ . ?z))))
+-      (hash (make-vector 100 nil))
++;;      (hash (make-vector 100 nil))
+       lang pair)
+   (while table
+     (setq lang (caar table)
+ 	  pair (cdar table)
+ 	  table (cdr table))
+     (while pair
+-      (set (intern (char-to-string (caar pair)) its-full-half-table)
+-	   (cdar pair))
+-      (set (intern (concat (symbol-name lang) (char-to-string (cdar pair)))
+-		   its-half-full-table)
+-	   (caar pair))
++;;      (set (intern (char-to-string (caar pair)) its-full-half-table)
++;;	   (cdar pair))
++      (puthash (caar pair) (cdar pair) its-full-half-table)
++;;      (set (intern (concat (symbol-name lang) (char-to-string (cdar pair)))
++;;		   its-half-full-table)
++;;	   (caar pair))
++      (puthash (cdar pair) (caar pair) its-half-full-table)
+       (setq pair (cdr pair)))
+-    hash))
++;;    hash
++    ))
+ 
+ ;;; its-half-width : half-width-region for input-buffer
+ (defun its-half-width ()
