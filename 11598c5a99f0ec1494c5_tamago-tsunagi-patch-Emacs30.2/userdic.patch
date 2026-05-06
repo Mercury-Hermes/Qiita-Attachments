@@ -1,0 +1,14 @@
+--- userdic.~1~	2017-01-21 18:04:03.000000000 +0900
++++ userdic	2026-05-04 12:22:20.838887534 +0900
+@@ -282,7 +282,10 @@
+     return nil if s == nil
+     pron, word, prop = s.split(/\t+/)
+     case type
+-    when 'generic', 'mozc', 'atok', 'msime', 'wnn'
++    when 'wnn'
++        prop = $hinshi_t[type][prop]
++        r = sprintf "%s\t%s\t%s\t0", pron, word, prop
++    when 'generic', 'mozc', 'atok', 'msime'
+         prop = $hinshi_t[type][prop]
+         r = sprintf "%s\t%s\t%s", pron, word, prop
+     when 'apple'
